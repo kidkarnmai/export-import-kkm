@@ -6,8 +6,6 @@ This plugin is designed for Strapi 5 and helps manage the export and import of c
 ## Features
 - Export collection types to an Excel file
 - Import collection types from an Excel file
-- Export single types to an Excel file
-- Import single types from an Excel file
 
 ## Installation
 To install this plugin, run the following command in your Strapi project:
