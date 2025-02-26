@@ -1,7 +1,7 @@
 # Strapi Export/Import KKM
 
 ## Overview
-This plugin is designed for Strapi 5 and helps manage the export and import of collection types and single types within the content manager.
+This plugin is designed for Strapi 5 and helps manage the export and import of collection types within the content manager. 
 
 ## Features
 - Export collection types to an Excel file
@@ -22,6 +22,9 @@ npm install export-import-kkm
 
 ## Compatibility
 Tested and developed with @strapi/strapi version ^5.10.3 and above.
+
+## Note
+Single types and related data export/import are not supported.
 
 ## License
 This project is licensed under the MIT License.
