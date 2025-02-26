@@ -1,0 +1,207 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { Button, Flex, Modal, Typography } from '@strapi/design-system';
+import { useLocation } from 'react-router-dom';
+import { useFetchClient } from '@strapi/strapi/admin';
+import * as XLSX from 'xlsx';
+
+const ImportButton = () => {
+  const { get, post } = useFetchClient();
+  const location = useLocation();
+
+  const [allowedImportCollections, setAllowedImportCollections] = useState([]);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
+  const [dataRows, setDataRows] = useState([]);
+
+  const [importResult, setImportResult] = useState(null);
+  const [showResultModal, setShowResultModal] = useState(false);
+
+  const fileInputRef = useRef(null);
+
+  // โหลด config เพื่อดูว่า collection นี้อนุญาตให้ import หรือไม่
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await get('/api/export-import-kkm/config');
+        let config;
+        if (Array.isArray(response.data)) {
+          config = response.data[0];
+        } else {
+          config = response.data;
+        }
+        if (config && config.selectedImportCollections) {
+          setAllowedImportCollections(config.selectedImportCollections);
+        } else {
+          setAllowedImportCollections([]);
+        }
+      } catch (error) {
+        console.error('Error fetching config:', error);
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+    fetchConfig();
+  }, [get]);
+
+  // ตรวจสอบว่าหน้าปัจจุบันอยู่ใน collection ที่อนุญาตหรือไม่
+  const segments = location.pathname.split('/');
+  const lastSegment = segments[segments.length - 1];
+  const currentContentType = lastSegment;
+
+  if (loadingConfig) return null;
+  if (!allowedImportCollections.includes(currentContentType)) return null;
+
+  // ฟังก์ชันเพื่อเปิด file input (ซ่อน)
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // เมื่อผู้ใช้เลือกไฟล์
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files[0];
+    if (!selectedFile) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const binaryStr = evt.target.result;
+      const workbook = XLSX.read(binaryStr, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+
+      // อ่านข้อมูลทั้งหมดในรูปแบบ array-of-arrays
+      let rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      if (rows.length === 0) {
+        setDataRows([]);
+        return;
+      }
+
+      // แยกแถวแรกเป็น headerRow
+      const [headerRow, ...bodyRows] = rows;
+
+      // กรองแถวว่าง (row ที่ไม่มีข้อมูลเลย)
+      const filteredBody = bodyRows.filter((row) => row.some((cell) => cell));
+
+      // แปลงแต่ละ row เป็น object โดย key มาจาก headerRow
+      const mappedData = filteredBody.map((row) => {
+        const obj = {};
+        row.forEach((cellValue, colIndex) => {
+          // ถ้า headerRow[colIndex] เป็น undefined ให้ใช้ fallback เช่น `col_${colIndex}`
+          const colName = headerRow[colIndex] || `col_${colIndex}`;
+          obj[colName] = cellValue;
+        });
+        return obj;
+      });
+
+      console.log('mappedData:', mappedData);
+      setDataRows(mappedData);
+    };
+    reader.readAsBinaryString(selectedFile);
+  };
+
+  // ฟังก์ชันส่งข้อมูล import แบบแบ่งเป็น batch
+  const handleImport = async () => {
+    if (dataRows.length === 0) {
+      console.error('No data to import');
+      return;
+    }
+
+    // ดึง collectionName จาก URL เช่น "/content-manager/collection-types/api::article.article"
+    const parts = location.pathname.split('::');
+    const collectionFull = parts[1] || '';
+    const [collectionName] = collectionFull.split('.');
+    console.log('Collection Name:', collectionName);
+
+    setIsImporting(true);
+    let importedCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+    try {
+      const batchSize = 100;
+      for (let i = 0; i < dataRows.length; i += batchSize) {
+        const batch = dataRows.slice(i, i + batchSize);
+        const response = await post('/api/export-import-kkm/import', {
+          data: {
+            rows: batch,
+            collectionName, // ส่งค่า collectionName ไปด้วย
+          },
+        });
+        console.log(`Batch ${i / batchSize + 1} imported:`, response.data);
+        // สมมุติว่าคำตอบ (response.data) มีข้อมูลผลลัพธ์ของ batch นี้
+        // คุณอาจจะรวมผลลัพธ์เหล่านี้เข้าด้วยกัน
+        importedCount += response.data.importedCount || 0;
+        updatedCount += response.data.updatedCount || 0;
+        skippedCount += response.data.skippedCount || 0;
+      }
+      // เก็บผลลัพธ์ที่ได้ใน state เพื่อแสดงใน Modal
+      setImportResult({
+        message: `Import completed for ${collectionName}`,
+        importedCount,
+        updatedCount,
+        skippedCount,
+        totalRows: dataRows.length,
+      });
+      setShowResultModal(true);
+    } catch (error) {
+      console.error('Import error:', error);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // ฟังก์ชันปิด Modal และ reload หน้า (หรือ refresh ข้อมูล)
+  const handleCloseModal = () => {
+    setShowResultModal(false);
+    // Reload หน้าเพื่อ refresh data
+    window.location.reload();
+  };
+
+  return (
+    <>
+      <Flex direction="row" gap={2}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+        <Button onClick={triggerFileInput} disabled={isImporting}>
+          {dataRows.length > 0 ? `Selected ${dataRows.length} rows` : 'Import File'}
+        </Button>
+        {dataRows.length > 0 && (
+          <Button onClick={handleImport} disabled={isImporting}>
+            {isImporting ? 'Importing...' : 'Import Data'}
+          </Button>
+        )}
+      </Flex>
+
+      <Modal.Root onClose={handleCloseModal} open={showResultModal}>
+        <Modal.Content>
+          <Modal.Header>
+            <Modal.Title>Import Result</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {importResult && (
+              <>
+                <Typography as="p">{importResult.message}</Typography>
+                <Typography as="p">Imported: {importResult.importedCount} rows</Typography>
+                <Typography as="p">Updated: {importResult.updatedCount} rows</Typography>
+                <Typography as="p">Skipped: {importResult.skippedCount} rows</Typography>
+                <Typography as="p">Total Rows Processed: {importResult.totalRows}</Typography>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer  justifyContent="center">
+            <Flex justifyContent="center">
+              <Button onClick={handleCloseModal}>Reload</Button>
+            </Flex>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal.Root>
+    </>
+  );
+};
+
+export default ImportButton;

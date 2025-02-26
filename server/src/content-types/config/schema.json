@@ -1,0 +1,28 @@
+{
+  "kind": "collectionType",
+  "collectionName": "export_import_kkm_configs",
+  "info": {
+    "singularName": "export-import-config",
+    "pluralName": "export-import-configs",
+    "displayName": "Export Import Config"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+      "visible": false
+    },
+    "content-type-builder": {
+      "visible": false
+    }
+  },
+  "attributes": {
+    "selectedExportCollections": {
+      "type": "json"
+    },
+    "selectedImportCollections": {
+      "type": "json"
+    }
+  }
+}
