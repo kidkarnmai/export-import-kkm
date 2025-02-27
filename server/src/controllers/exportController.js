@@ -1,41 +1,36 @@
+'use strict';
+
 const ExcelJS = require('exceljs');
 
-
-const exportController = ({
-  strapi
-}) => ({
+const exportController = ({ strapi }) => ({
   async exportData(ctx) {
-    // // ดึงค่าช่วงวันที่จาก query parameters
-    const {
-      collection,
-      startDate,
-      endDate
-    } = ctx.query;
+    // รับค่า query parameters
+    const { collection, startDate, endDate } = ctx.query;
 
-    // แปลงวันที่ให้เป็น ISO string
-    const startISODate = new Date(startDate).toISOString();
-    const endISODate = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString();
+    // แปลงวันที่เป็น ISO string หากมี
+    const startISODate = startDate ? new Date(startDate).toISOString() : null;
+    const endISODate = endDate ? new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1)).toISOString() : null;
 
-    const modelName = `api::${collection}.${collection}`; // สร้างชื่อ model แบบ dynamic
-    const data = await strapi.entityService.findMany(modelName, {
-      filters: {
+    // สร้าง modelName แบบ dynamic จาก collection
+    const modelName = `api::${collection}.${collection}`;
+
+    // กำหนด options สำหรับการ query
+    const queryOptions = {
+      populate: '*',
+    };
+
+    if (startISODate && endISODate) {
+      queryOptions.filters = {
         createdAt: {
           $gte: startISODate,
           $lt: endISODate,
         },
-      },
-      populate: '*',
-    });
+      };
+    }
 
-    // ctx.body = {
-    //     startDate: ctx.query.startDate,
-    //     endDate: ctx.query.endDate,
-    //     data: data,
-    // };
+    const data = await strapi.entityService.findMany(modelName, queryOptions);
 
-
-
-    // สร้าง workbook และ worksheet ใหม่ด้วย exceljs
+    // สร้าง workbook และ worksheet ใหม่ด้วย ExcelJS
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Export Data');
 
@@ -51,10 +46,8 @@ const exportController = ({
       });
     }
 
-    // เขียน workbook เป็น buffer
+    // เขียน workbook เป็น buffer แล้วส่งกลับ
     const buffer = await workbook.xlsx.writeBuffer();
-
-    // กำหนด headers ของ response ให้เป็นไฟล์ Excel
     ctx.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     ctx.set('Content-Disposition', 'attachment; filename=export.xlsx');
     ctx.body = buffer;

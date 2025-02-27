@@ -73,7 +73,7 @@ const importController = ({ strapi }) => ({
           return acc;
         }, {});
 
-        console.log('sanitizedRow:', sanitizedRow);
+        // console.log('sanitizedRow:', sanitizedRow);
 
         // ตรวจสอบว่ามี id ใน sanitizedRow หรือไม่
         if (sanitizedRow.id) {

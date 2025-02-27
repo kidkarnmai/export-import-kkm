@@ -1,21 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Button, DatePicker,Flex } from '@strapi/design-system';
+import { Button, DatePicker, Flex } from '@strapi/design-system';
 import { useLocation } from 'react-router-dom';
 import { useFetchClient } from '@strapi/strapi/admin';
 
-
 const ExportButton = () => {
   const { get } = useFetchClient();
-  
   const location = useLocation();
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [allowedExportCollections, setAllowedExportCollections] = useState([]);
-  
-  const [loadingConfig, setLoadingConfig] = useState(true); // สถานะโหลด config
-  const [isExporting, setIsExporting] = useState(false);    // สถานะโหลดขณะ export
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // ดึง config จาก server เพื่อรับค่า selectedCollections
+  // โหลด config เพื่อรับค่า selectedExportCollections
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -40,64 +38,62 @@ const ExportButton = () => {
     fetchConfig();
   }, [get]);
 
-  // ถ้ากำลังโหลดค่า config หรือไม่ได้รับค่าให้ return null
-  if (loadingConfig) {
-    return null;
-  }
-   // ดึง content type จาก URL เช่น "/content-manager/collection-types/api::article.article"
-   const segments = location.pathname.split('/');
-   const lastSegment = segments[segments.length - 1];
-   const currentContentType = lastSegment; // เช่น "api::article.article"
- 
-   // ตรวจสอบว่า currentContentType อยู่ใน allowedExportCollections หรือไม่
-   if (!allowedExportCollections.includes(currentContentType)) {
-     return null;
-   }
-
-
+  // ดึง content type จาก URL เช่น "/content-manager/collection-types/api::article.article"
+  const segments = location.pathname.split('/');
+  const lastSegment = segments[segments.length - 1];
+  const currentContentType = lastSegment;
+  if (loadingConfig) return null;
+  if (!allowedExportCollections.includes(currentContentType)) return null;
 
   const handleExport = async () => {
-    // console.log(location)
-    if (!startDate || !endDate) {
-      alert('Start Date and End Date must be provided.')
-      return;
+    // ถ้าไม่เลือกวันที่เลย ให้แจ้งเตือน confirm ก่อน export ทั้งหมด
+    if (!startDate && !endDate) {
+      const confirmAll = window.confirm(
+        "No dates selected. This will export ALL data, which might take a long time. Do you want to continue?"
+      );
+      if (!confirmAll) return;
+    } else if (!startDate || !endDate) {
+      // ถ้าเลือกแค่หนึ่งในวันที่ ให้แจ้งเตือน
+      const confirmPartial = window.confirm(
+        "Only one date is provided. This will export ALL data. Do you want to continue?"
+      );
+      if (!confirmPartial) return;
     }
 
-    // เริ่มโหลด export
     setIsExporting(true);
 
+    // ดึง collectionName จาก URL (เช่น "api::article.article" → "article")
     const parts = location.pathname.split('::');
     const collectionFull = parts[1] || '';
     const [collectionName] = collectionFull.split('.');
+    
     try {
-      // เรียก API export โดยส่งช่วงวันที่ใน query params
-      const response = await fetch(
-        `/api/export-import-kkm/export?collection=${collectionName}&startDate=${startDate}&endDate=${endDate}`
-      );
-
-      // แปลง response เป็น blob
+      // สร้าง query string โดยส่งวันที่ (ถ้ามี)
+      let query = `collection=${collectionName}`;
+      if (startDate && endDate) {
+        query += `&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+      }
+      
+      // เรียก API export
+      const response = await fetch(`/api/export-import-kkm/export?${query}`);
       const blob = await response.blob();
-      // สร้าง URL สำหรับ blob
       const url = window.URL.createObjectURL(blob);
-      // สร้าง element <a> เพื่อ trigger download
       const a = document.createElement('a');
       a.href = url;
-      a.download = collectionName+'.xlsx';
+      a.download = `${collectionName}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-        
     } catch (error) {
       console.error('Export error:', error);
     } finally {
-      // เสร็จสิ้นการ export
       setIsExporting(false);
     }
   };
 
   return (
     <Flex direction="row" gap={2}>
-      <DatePicker label="Start Date" onChange={setStartDate}  />
+      <DatePicker label="Start Date" onChange={setStartDate} />
       <DatePicker label="End Date" onChange={setEndDate} />
       <Button onClick={handleExport} disabled={isExporting}>
         {isExporting ? 'Exporting...' : 'Export'}
