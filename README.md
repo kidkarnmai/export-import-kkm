@@ -22,7 +22,9 @@ npm install export-import-kkm
 Tested and developed with @strapi/strapi version ^5.10.3 and above.
 
 ## Note
-Single types and related data export/import are not supported. Future plans include adding support for these features.
+1. For exporting data that includes components, the data can be extracted, and the information in that column will be in JSON format.
+2. For importing data that includes components, if you do not import the data within the components, there will be no issues. However, if you do import, ensure that the JSON structure in those columns is correct and matches the structure when exported to function properly.
+
 
 ## License
 This project is licensed under the MIT License.

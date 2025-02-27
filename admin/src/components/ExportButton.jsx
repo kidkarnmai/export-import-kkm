@@ -82,7 +82,7 @@ const ExportButton = () => {
       // สร้าง element <a> เพื่อ trigger download
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'export.xlsx';
+      a.download = collectionName+'.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();

@@ -24,6 +24,7 @@ const exportController = ({
           $lt: endISODate,
         },
       },
+      populate: '*',
     });
 
     // ctx.body = {
