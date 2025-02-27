@@ -16,13 +16,13 @@ npm install export-import-kkm
 
 ## Usage
 1. Navigate to the content manager in your Strapi admin panel.
-2. Use the export/import options available for collection types and single types.
+2. Use the export/import options available for collection types.
 
 ## Compatibility
 Tested and developed with @strapi/strapi version ^5.10.3 and above.
 
 ## Note
-Single types and related data export/import are not supported.
+Single types and related data export/import are not supported. Future plans include adding support for these features.
 
 ## License
 This project is licensed under the MIT License.

@@ -160,9 +160,9 @@ const HomePage = () => {
       <Typography variant="pi" as="p">
           This plugin is developed for free use. The developer is happy for you to use or modify it as needed. 
           You can find more information on 
-          <a href="https://github.com/kidkarnmai/export-import-kkm" target="_blank" rel="noopener noreferrer">the project's GitHub page</a>. 
+          <a href="https://github.com/kidkarnmai/export-import-kkm" target="_blank" rel="noopener noreferrer"> the project's GitHub page</a>. 
           Thank you from  
-          <a href="https://www.kidkarnmai.com" target="_blank" rel="noopener noreferrer">Kidkarnmai Studio</a>.
+          <a href="https://www.kidkarnmai.com" target="_blank" rel="noopener noreferrer"> Kidkarnmai Studio</a>.
         </Typography>
       </Box>
     </Main>
