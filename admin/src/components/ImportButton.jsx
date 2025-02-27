@@ -15,6 +15,7 @@ const ImportButton = () => {
 
   const [importResult, setImportResult] = useState(null);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -47,7 +48,6 @@ const ImportButton = () => {
   const segments = location.pathname.split('/');
   const lastSegment = segments[segments.length - 1];
   const currentContentType = lastSegment;
-
   if (loadingConfig) return null;
   if (!allowedImportCollections.includes(currentContentType)) return null;
 
@@ -58,7 +58,7 @@ const ImportButton = () => {
     }
   };
 
-  // เมื่อผู้ใช้เลือกไฟล์
+  // เมื่อผู้ใช้เลือกไฟล์ อ่านและแปลงข้อมูลเป็น array-of-objects โดยใช้แถวแรกเป็น header
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (!selectedFile) return;
@@ -76,25 +76,20 @@ const ImportButton = () => {
         setDataRows([]);
         return;
       }
-
       // แยกแถวแรกเป็น headerRow
       const [headerRow, ...bodyRows] = rows;
-
-      // กรองแถวว่าง (row ที่ไม่มีข้อมูลเลย)
+      // กรองแถวว่าง
       const filteredBody = bodyRows.filter((row) => row.some((cell) => cell));
-
-      // แปลงแต่ละ row เป็น object โดย key มาจาก headerRow
+      // แปลงแต่ละ row เป็น object โดยใช้ headerRow เป็น key
       const mappedData = filteredBody.map((row) => {
         const obj = {};
         row.forEach((cellValue, colIndex) => {
-          // ถ้า headerRow[colIndex] เป็น undefined ให้ใช้ fallback เช่น `col_${colIndex}`
           const colName = headerRow[colIndex] || `col_${colIndex}`;
           obj[colName] = cellValue;
         });
         return obj;
       });
-
-      console.log('mappedData:', mappedData);
+      console.log('Mapped data:', mappedData);
       setDataRows(mappedData);
     };
     reader.readAsBinaryString(selectedFile);
@@ -106,7 +101,6 @@ const ImportButton = () => {
       console.error('No data to import');
       return;
     }
-
     // ดึง collectionName จาก URL เช่น "/content-manager/collection-types/api::article.article"
     const parts = location.pathname.split('::');
     const collectionFull = parts[1] || '';
@@ -128,13 +122,10 @@ const ImportButton = () => {
           },
         });
         console.log(`Batch ${i / batchSize + 1} imported:`, response.data);
-        // สมมุติว่าคำตอบ (response.data) มีข้อมูลผลลัพธ์ของ batch นี้
-        // คุณอาจจะรวมผลลัพธ์เหล่านี้เข้าด้วยกัน
         importedCount += response.data.importedCount || 0;
         updatedCount += response.data.updatedCount || 0;
         skippedCount += response.data.skippedCount || 0;
       }
-      // เก็บผลลัพธ์ที่ได้ใน state เพื่อแสดงใน Modal
       setImportResult({
         message: `Import completed for ${collectionName}`,
         importedCount,
@@ -150,11 +141,21 @@ const ImportButton = () => {
     }
   };
 
-  // ฟังก์ชันปิด Modal และ reload หน้า (หรือ refresh ข้อมูล)
-  const handleCloseModal = () => {
+  // ฟังก์ชันปิด Modal Result และ reload หน้า
+  const handleCloseResultModal = () => {
     setShowResultModal(false);
-    // Reload หน้าเพื่อ refresh data
     window.location.reload();
+  };
+
+  // ฟังก์ชันปิด Confirm Modal (ยกเลิก)
+  const handleCloseConfirmModal = () => {
+    setShowConfirmModal(false);
+  };
+
+  // ฟังก์ชัน Confirm Import (เมื่อกด Confirm ใน Modal)
+  const handleConfirmImport = async () => {
+    setShowConfirmModal(false);
+    await handleImport();
   };
 
   return (
@@ -171,35 +172,58 @@ const ImportButton = () => {
           {dataRows.length > 0 ? `Selected ${dataRows.length} rows` : 'Import File'}
         </Button>
         {dataRows.length > 0 && (
-          <Button onClick={handleImport} disabled={isImporting}>
+          <Button onClick={() => setShowConfirmModal(true)} disabled={isImporting}>
             {isImporting ? 'Importing...' : 'Import Data'}
           </Button>
         )}
       </Flex>
 
-      <Modal.Root onClose={handleCloseModal} open={showResultModal}>
-        <Modal.Content>
-          <Modal.Header>
-            <Modal.Title>Import Result</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {importResult && (
-              <>
-                <Typography as="p">{importResult.message}</Typography>
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <Modal.Root onClose={handleCloseConfirmModal} open={showConfirmModal}>
+          <Modal.Content>
+            <Modal.Header>
+              <Modal.Title>Confirm Import</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Typography>
+                Are you sure you want to import the data? This action cannot be undone.
+              </Typography>
+            </Modal.Body>
+            <Modal.Footer>
+              <Modal.Close>
+                <Button variant="tertiary" onClick={handleCloseConfirmModal}>
+                  Cancel
+                </Button>
+              </Modal.Close>
+              <Button onClick={handleConfirmImport}>Confirm</Button>
+            </Modal.Footer>
+          </Modal.Content>
+        </Modal.Root>
+      )}
+
+      {/* Result Modal */}
+      {showResultModal && importResult && (
+        <Modal.Root onClose={handleCloseResultModal} open={showResultModal}>
+          <Modal.Content>
+            <Modal.Header>
+              <Modal.Title>Import Result</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+            <Typography as="p">{importResult.message}</Typography>
                 <Typography as="p">Imported: {importResult.importedCount} rows</Typography>
                 <Typography as="p">Updated: {importResult.updatedCount} rows</Typography>
                 <Typography as="p">Skipped: {importResult.skippedCount} rows</Typography>
                 <Typography as="p">Total Rows Processed: {importResult.totalRows}</Typography>
-              </>
-            )}
-          </Modal.Body>
-          <Modal.Footer  justifyContent="center">
-            <Flex justifyContent="center">
-              <Button onClick={handleCloseModal}>Reload</Button>
-            </Flex>
-          </Modal.Footer>
-        </Modal.Content>
-      </Modal.Root>
+            </Modal.Body>
+            <Modal.Footer  justifyContent="center">
+              <Flex justifyContent="center">
+                <Button onClick={handleCloseResultModal}>Reload</Button>
+              </Flex>
+            </Modal.Footer>
+          </Modal.Content>
+        </Modal.Root>
+      )}
     </>
   );
 };

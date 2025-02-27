@@ -59,7 +59,7 @@ const ExportButton = () => {
   const handleExport = async () => {
     // console.log(location)
     if (!startDate || !endDate) {
-      console.error('Start Date and End Date must be provided.');
+      alert('Start Date and End Date must be provided.')
       return;
     }
 
@@ -69,7 +69,6 @@ const ExportButton = () => {
     const parts = location.pathname.split('::');
     const collectionFull = parts[1] || '';
     const [collectionName] = collectionFull.split('.');
-    console.log('Collection Name:', collectionName);
     try {
       // เรียก API export โดยส่งช่วงวันที่ใน query params
       const response = await fetch(

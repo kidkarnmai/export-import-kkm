@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Main, Checkbox, Flex, Typography, Box, Button, Divider } from '@strapi/design-system';
-
 import { useIntl } from 'react-intl';
 import { getTranslation } from '../utils/getTranslation';
 import { useFetchClient } from '@strapi/strapi/admin';
@@ -12,6 +11,7 @@ const HomePage = () => {
   const [collectionTypes, setCollectionTypes] = useState([]);
   const [exportCollections, setExportCollections] = useState([]);
   const [importCollections, setImportCollections] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // โหลดรายการ collectionTypes
   useEffect(() => {
@@ -48,7 +48,6 @@ const HomePage = () => {
           config = response.data;
         }
         if (config) {
-          // ถ้ายังไม่มีค่า จะได้เป็น array ว่าง
           setExportCollections(config.selectedExportCollections || []);
           setImportCollections(config.selectedImportCollections || []);
         }
@@ -78,6 +77,7 @@ const HomePage = () => {
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       const response = await post('/api/export-import-kkm/config', {
         data: {
@@ -86,13 +86,17 @@ const HomePage = () => {
         },
       });
       console.log('Config saved:', response.data);
+      alert('Configuration saved successfully!');
     } catch (error) {
       console.error('Error saving config:', error);
+      alert('Error saving configuration.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
-    <Main  padding={8}>
+    <Main padding={8}>
       <Box>
         <Typography variant="beta" as="h1">
           Welcome to the Export/Import system by Kidkarnmai Studio co.ltd.
@@ -105,30 +109,20 @@ const HomePage = () => {
       <Box padding={4}>
         <Divider />
       </Box>
-      {/* สร้าง layout สองคอลัมน์ */}
+      {/* สร้าง layout สองคอลัมน์ */} 
       <Flex gap={8} alignItems="flex-start">
         {/* Column Export */}
-        <Box
-          width="50%"
-          padding={4}
-          borderColor={{
-            initial: '#fff',
-          }}
-        >
+        <Box width="50%" padding={4} borderColor={{initial: '#fff'}}>
           <Typography variant="beta" as="h2">
             Export Collections
           </Typography>
-          <Flex
-            direction="column"
-            gap={2}
-            marginTop={2}
-            alignItems="left"
-          >
+          <Flex direction="column" gap={2} marginTop={2} alignItems="left">
             {collectionTypes.map((ct) => (
               <Checkbox
                 key={ct.uid}
                 checked={exportCollections.includes(ct.uid)}
                 onCheckedChange={() => handleExportToggle(ct.uid)}
+                disabled={isSaving}
               >
                 {ct.schema.displayName}
               </Checkbox>
@@ -137,27 +131,17 @@ const HomePage = () => {
         </Box>
 
         {/* Column Import */}
-        <Box
-          width="50%"
-          padding={4}
-          borderColor={{
-            initial: '#fff',
-          }}
-        >
+        <Box width="50%" padding={4} borderColor={{initial: '#fff'}}>
           <Typography variant="beta" as="h2">
             Import Collections
           </Typography>
-          <Flex
-            direction="column"
-            gap={2}
-            marginTop={2}
-            alignItems="left"
-          >
+          <Flex direction="column" gap={2} marginTop={2} alignItems="left">
             {collectionTypes.map((ct) => (
               <Checkbox
                 key={ct.uid}
                 checked={importCollections.includes(ct.uid)}
                 onCheckedChange={() => handleImportToggle(ct.uid)}
+                disabled={isSaving}
               >
                 {ct.schema.displayName}
               </Checkbox>
@@ -166,12 +150,10 @@ const HomePage = () => {
         </Box>
       </Flex>
 
-      <Flex
-        marginTop={4}
-        justifyContent="center"
-        alignItems="center"
-      >
-        <Button onClick={handleSave}>Save Config</Button>
+      <Flex marginTop={4} justifyContent="center" alignItems="center">
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Config'}
+        </Button>
       </Flex>
     </Main>
   );
