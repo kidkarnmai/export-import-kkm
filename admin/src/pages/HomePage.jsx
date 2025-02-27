@@ -99,7 +99,7 @@ const HomePage = () => {
     <Main padding={8}>
       <Box>
         <Typography variant="beta" as="h1">
-          Welcome to the Export/Import system by Kidkarnmai Studio co.ltd.
+          Welcome to the Export/Import system.
         </Typography>
         <Typography variant="omega" as="p">
           Configure the display of the Export or Import button using the desired Collection through
@@ -155,6 +155,16 @@ const HomePage = () => {
           {isSaving ? 'Saving...' : 'Save Config'}
         </Button>
       </Flex>
+
+      <Box style={{ position: 'fixed', bottom: 0, width: '100%', backgroundColor: '#fff' }}>
+      <Typography variant="pi" as="p">
+          This plugin is developed for free use. The developer is happy for you to use or modify it as needed. 
+          You can find more information on 
+          <a href="https://github.com/kidkarnmai/export-import-kkm" target="_blank" rel="noopener noreferrer">the project's GitHub page</a>. 
+          Thank you from  
+          <a href="https://www.kidkarnmai.com" target="_blank" rel="noopener noreferrer">Kidkarnmai Studio</a>.
+        </Typography>
+      </Box>
     </Main>
   );
 };
