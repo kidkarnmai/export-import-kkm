@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, DatePicker, Flex } from '@strapi/design-system';
 import { useLocation } from 'react-router-dom';
 import { useFetchClient } from '@strapi/strapi/admin';
+import qs from 'qs';
 
 const ExportButton = () => {
   const { get } = useFetchClient();
@@ -46,20 +47,47 @@ const ExportButton = () => {
   if (!allowedExportCollections.includes(currentContentType)) return null;
 
   const handleExport = async () => {
-    // ถ้าไม่เลือกวันที่เลย ให้แจ้งเตือน confirm ก่อน export ทั้งหมด
-    if (!startDate && !endDate) {
-      const confirmAll = window.confirm(
-        "No dates selected. This will export ALL data, which might take a long time. Do you want to continue?"
-      );
-      if (!confirmAll) return;
-    } else if (!startDate || !endDate) {
-      // ถ้าเลือกแค่หนึ่งในวันที่ ให้แจ้งเตือน
-      const confirmPartial = window.confirm(
-        "Only one date is provided. This will export ALL data. Do you want to continue?"
-      );
-      if (!confirmPartial) return;
+    // สร้างข้อความแจ้งเตือนโดยพิจารณาจากเงื่อนไขที่ใช้ในการ export
+    let messageLines = [];
+
+    // เงื่อนไขวันที่
+    if (startDate && endDate) {
+      messageLines.push(`Date Range: ${startDate} to ${endDate}`);
+    } else if (!startDate && !endDate) {
+      messageLines.push('No date filter is applied (exporting ALL data)');
+    } else {
+      messageLines.push('Incomplete date filter provided (exporting ALL data)');
     }
 
+    // ใช้ qs เพื่อ parse query string จาก URL
+    const parsedQuery = qs.parse(location.search, { ignoreQueryPrefix: true });
+    
+    // ตรวจสอบ filters (ยกเว้น createdAt)
+    if (parsedQuery.filters) {
+      let filters = parsedQuery.filters;
+      if (filters.$and && Array.isArray(filters.$and)) {
+        filters.$and = filters.$and.filter(condition => !('createdAt' in condition));
+      } else if (filters.createdAt) {
+        delete filters.createdAt;
+      }
+      // หาก filters ไม่ว่าง ให้เพิ่มข้อความ
+      if (filters && Object.keys(filters).length > 0) {
+        messageLines.push(`Filters: ${JSON.stringify(filters)}`);
+      }
+    }
+    
+    // ตรวจสอบ _q (keyword search)
+    if (parsedQuery._q) {
+      messageLines.push(`Search Keyword: ${parsedQuery._q}`);
+    }
+    
+    // รวมข้อความแจ้งเตือน
+    const confirmMessage = `Export will be performed with the following conditions:\n\n${messageLines.join('\n')}\n\nProceed?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
     setIsExporting(true);
 
     // ดึง collectionName จาก URL (เช่น "api::article.article" → "article")
@@ -68,10 +96,23 @@ const ExportButton = () => {
     const [collectionName] = collectionFull.split('.');
     
     try {
-      // สร้าง query string โดยส่งวันที่ (ถ้ามี)
+      // สร้าง query string ด้วยค่า collection, startDate, endDate
       let query = `collection=${collectionName}`;
       if (startDate && endDate) {
         query += `&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+      }
+      
+      // ถ้ามี filters จาก URL (โดยไม่เอา createdAt) ให้ส่งไปด้วย
+      if (parsedQuery.filters) {
+        const filtersQuery = qs.stringify({ filters: parsedQuery.filters }, { encode: false });
+        if (filtersQuery) {
+          query += `&${filtersQuery}`;
+        }
+      }
+      
+      // หากมี _q ใน query ให้ส่งไปด้วย
+      if (parsedQuery._q) {
+        query += `&_q=${encodeURIComponent(parsedQuery._q)}`;
       }
       
       // เรียก API export

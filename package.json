@@ -1,6 +1,6 @@
 {
   "name": "export-import-kkm",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "This plugin is designed for Strapi 5 and helps manage the export and import of collection types within the content manager.",
   "keywords": [],
   "license": "MIT",
@@ -38,6 +38,7 @@
     "@strapi/design-system": "^2.0.0-rc.16",
     "@strapi/icons": "^2.0.0-rc.16",
     "exceljs": "^4.4.0",
+    "qs": "^6.14.0",
     "react-intl": "^7.1.6",
     "xlsx": "^0.18.5"
   },
