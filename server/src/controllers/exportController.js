@@ -1,6 +1,5 @@
 'use strict';
 
-const ExcelJS = require('exceljs');
 
 const exportController = ({ strapi }) => ({
   async exportData(ctx) {
@@ -48,27 +47,9 @@ const exportController = ({ strapi }) => ({
       queryOptions._q = _q;
     }
     
-    // ดึงข้อมูลจาก DB ด้วย Entity Service
-    const data = await strapi.entityService.findMany(modelName, queryOptions);
+    const data = await strapi.documents(modelName).findMany(queryOptions);
     
-    // สร้าง workbook และ worksheet ใหม่ด้วย ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Export Data');
-    
-    if (data.length > 0) {
-      const headers = Object.keys(data[0]);
-      worksheet.addRow(headers);
-      
-      data.forEach(item => {
-        const rowData = headers.map(header => item[header]);
-        worksheet.addRow(rowData);
-      });
-    }
-    
-    const buffer = await workbook.xlsx.writeBuffer();
-    ctx.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    ctx.set('Content-Disposition', 'attachment; filename=export.xlsx');
-    ctx.body = buffer;
+    return data;
   },
 });
 

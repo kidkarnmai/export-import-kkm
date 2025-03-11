@@ -23,7 +23,7 @@ const ImportButton = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await get('/api/export-import-kkm/config');
+        const response = await get('/export-import-kkm/config');
         let config;
         if (Array.isArray(response.data)) {
           config = response.data[0];
@@ -115,7 +115,7 @@ const ImportButton = () => {
       const batchSize = 100;
       for (let i = 0; i < dataRows.length; i += batchSize) {
         const batch = dataRows.slice(i, i + batchSize);
-        const response = await post('/api/export-import-kkm/import', {
+        const response = await post('/export-import-kkm/import', {
           data: {
             rows: batch,
             collectionName, // ส่งค่า collectionName ไปด้วย

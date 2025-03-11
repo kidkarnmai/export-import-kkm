@@ -3,6 +3,8 @@ import { Button, DatePicker, Flex } from '@strapi/design-system';
 import { useLocation } from 'react-router-dom';
 import { useFetchClient } from '@strapi/strapi/admin';
 import qs from 'qs';
+import * as XLSX from 'xlsx';
+
 
 const ExportButton = () => {
   const { get } = useFetchClient();
@@ -18,7 +20,7 @@ const ExportButton = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await get('/api/export-import-kkm/config');
+        const response = await get('/export-import-kkm/config');
         let config;
         if (Array.isArray(response.data)) {
           config = response.data[0];
@@ -94,7 +96,14 @@ const ExportButton = () => {
     const parts = location.pathname.split('::');
     const collectionFull = parts[1] || '';
     const [collectionName] = collectionFull.split('.');
-    
+    const flattenObject = (obj) => {
+      return Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => [
+          key,
+          (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value,
+        ])
+      );
+    };
     try {
       // สร้าง query string ด้วยค่า collection, startDate, endDate
       let query = `collection=${collectionName}`;
@@ -116,8 +125,19 @@ const ExportButton = () => {
       }
       
       // เรียก API export
-      const response = await fetch(`/api/export-import-kkm/export?${query}`);
-      const blob = await response.blob();
+      const response = await get(`/export-import-kkm/export?${query}`);
+      const jsonData = response.data;
+      
+      const flattenedData = jsonData.map(flattenObject);
+
+      // สร้าง worksheet จาก flattenedData
+      const worksheet = XLSX.utils.json_to_sheet(flattenedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Export Data');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -125,6 +145,7 @@ const ExportButton = () => {
       document.body.appendChild(a);
       a.click();
       a.remove();
+
     } catch (error) {
       console.error('Export error:', error);
     } finally {

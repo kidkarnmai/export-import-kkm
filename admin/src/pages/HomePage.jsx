@@ -40,7 +40,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchSavedConfig = async () => {
       try {
-        const response = await get('/api/export-import-kkm/config');
+        const response = await get('/export-import-kkm/config');
         let config;
         if (Array.isArray(response.data)) {
           config = response.data[0];
@@ -79,7 +79,7 @@ const HomePage = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const response = await post('/api/export-import-kkm/config', {
+      const response = await post('/export-import-kkm/config', {
         data: {
           selectedExportCollections: exportCollections,
           selectedImportCollections: importCollections,
@@ -156,13 +156,12 @@ const HomePage = () => {
         </Button>
       </Flex>
 
-      <Box style={{ position: 'fixed', bottom: 0, width: '100%', backgroundColor: '#fff' }}>
+      <Box style={{ position: 'fixed', bottom: 0 }}>
       <Typography variant="pi" as="p">
           This plugin is developed for free use. The developer is happy for you to use or modify it as needed. 
           You can find more information on 
           <a href="https://github.com/kidkarnmai/export-import-kkm" target="_blank" rel="noopener noreferrer"> the project's GitHub page</a>. 
-          Thank you from  
-          <a href="https://www.kidkarnmai.com" target="_blank" rel="noopener noreferrer"> Kidkarnmai Studio</a>.
+          For a more complete installation package, you can check out <a href='https://www.npmjs.com/package/strapi-backend-pack' target='_blank'  rel="noopener noreferrer">Strapi Backend Pack</a>
         </Typography>
       </Box>
     </Main>

@@ -2,7 +2,6 @@
 
 const importController = ({ strapi }) => ({
   async importData(ctx) {
-    // รับข้อมูล rows และ collectionName จาก body
     const { data } = ctx.request.body;
     const { rows, collectionName } = data || {};
 
@@ -13,13 +12,9 @@ const importController = ({ strapi }) => ({
       return ctx.throw(400, 'Invalid data: rows must be an array');
     }
 
-    // สร้าง modelName แบบ dynamic จาก collectionName
-    // เช่น ถ้า collectionName = "member", modelName = "api::member.member"
     const modelName = `api::${collectionName}.${collectionName}`;
 
-    // กำหนด key ที่จะตัดออกจากข้อมูล (ที่ไม่ต้องการบันทึก)
     const excludedKeys = [
-      'documentId',
       'createdAt',
       'updatedAt',
       'publishedAt',
@@ -27,7 +22,6 @@ const importController = ({ strapi }) => ({
       'updatedBy'
     ];
 
-    // ฟังก์ชันช่วย สำหรับพยายาม parse JSON string เป็น object/array
     const tryParseJSON = (value) => {
       if (typeof value === 'string') {
         const trimmed = value.trim();
@@ -43,7 +37,6 @@ const importController = ({ strapi }) => ({
       return value;
     };
 
-    // ฟังก์ชันตรวจสอบว่า value เป็น "ว่าง" หรือไม่
     const isEmptyValue = (value) => {
       if (value == null) return true;
       if (typeof value === 'string' && value.trim() === '') return true;
@@ -52,20 +45,18 @@ const importController = ({ strapi }) => ({
       return false;
     };
 
-
     let importedCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
 
     for (const row of rows) {
       try {
-        // ทำการ sanitize row โดย:
-        // 1. ตัด key ที่อยู่ใน excludedKeys
-        // 2. ใช้ tryParseJSON กับค่าในแต่ละ key
-        // 3. ถ้าค่าที่ parse แล้วเป็น "ว่าง" ให้ไม่รวม key นั้น
         const sanitizedRow = Object.keys(row).reduce((acc, key) => {
           if (!excludedKeys.includes(key)) {
-            const parsedValue = tryParseJSON(row[key]);
+            let parsedValue = tryParseJSON(row[key]);
+            if (parsedValue && typeof parsedValue === 'object' && parsedValue.documentId) {
+              return acc;
+            }
             if (!isEmptyValue(parsedValue)) {
               acc[key] = parsedValue;
             }
@@ -73,24 +64,30 @@ const importController = ({ strapi }) => ({
           return acc;
         }, {});
 
-        // console.log('sanitizedRow:', sanitizedRow);
-
-        // ตรวจสอบว่ามี id ใน sanitizedRow หรือไม่
-        if (sanitizedRow.id) {
-          // ค้นหาข้อมูลเดิมใน DB โดยใช้ id
-          const existing = await strapi.entityService.findOne(modelName, sanitizedRow.id);
+        if (sanitizedRow.documentId) {
+          const existing = await strapi.documents(modelName).findOne({
+            documentId: sanitizedRow.documentId,
+            populate: '*',
+          });
           if (existing) {
-            // อัปเดตข้อมูล record ที่มีอยู่แล้ว
-            await strapi.entityService.update(modelName, sanitizedRow.id, { data: sanitizedRow });
+            await strapi.documents(modelName).update({
+              documentId: sanitizedRow.documentId,
+              data: sanitizedRow,
+              populate: '*',
+            });
             updatedCount++;
           } else {
-            // สร้าง record ใหม่
-            await strapi.entityService.create(modelName, { data: sanitizedRow });
+            await strapi.documents(modelName).create({
+              data: sanitizedRow,
+              populate: '*',
+            });
             importedCount++;
           }
         } else {
-          // ถ้าไม่มี id ให้สร้าง record ใหม่เสมอ
-          await strapi.entityService.create(modelName, { data: sanitizedRow });
+          await strapi.documents(modelName).create({
+            data: sanitizedRow,
+            populate: '*',
+          });
           importedCount++;
         }
       } catch (error) {
